@@ -191,9 +191,12 @@ body{
         width: 100%;
         height: 100%;
         z-index: -1;
-        background: var(--color-button);
+        background: var(--color-button-active);
         border-radius: px-to-rem(50);
-        transition: background 0.3s ease;
+
+        transform: scaleX(0);
+        transition: transform 0.3s ease;
+        transform-origin: 50% 0;
     }
 
     &:hover,
@@ -203,7 +206,8 @@ body{
             opacity: 0;
         }
         &::after {
-            background-color: var(--color-button-active);
+            transform: scaleX(1);
+            //background-color: var(--color-button-active);
         }
     }          
 }
@@ -390,6 +394,7 @@ body{
     top: 0;
     left: 0;
     z-index: 0;
+    pointer-events: none;
 
     display: flex;
     justify-content: space-between;
@@ -401,6 +406,10 @@ body{
 
     @at-root .banner & {
         min-height: px-to-rem(560);
+    }
+
+    @at-root .blog .blog__bg & {
+        z-index: 1;
     }
 
     @at-root .banner-inner & {
@@ -442,6 +451,42 @@ body{
            // transform: translate(-50%, 0);
             opacity: 0;
             transition: opacity 1s ease;
+        }
+    }
+}
+
+.hover-table {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 2;
+    width: 100%;
+    height: 100%;
+    margin: 0 !important;
+    background-color: var(--color-button);
+
+    will-change: transform;
+    overflow: hidden;
+
+    //.hover-table__content 
+    &__content {
+        display: flex;
+        color: var(--color-text-secondary);
+
+        @include viewport-desktop {
+            padding: px-to-rem(15) px-to-rem(40) px-to-rem(12);
+        }
+
+        @include viewport-tablet-max {
+            padding: px-to-rem(15) px-to-rem(25) px-to-rem(12);
+        }
+
+        > * + * {
+            margin-left: px-to-rem(15);
+            
+            @include viewport-phone {
+                margin-left: px-to-rem(20);
+            }
         }
     }
 }

@@ -173,13 +173,13 @@ document.addEventListener('DOMContentLoaded', function () {
       let parent;
 
       if (Array.from(submenu.classList).includes('level2')) {
-        console.log(1);
+        //console.log(1);
         parent = submenu.parentElement;
       } else {
         parent = submenu.parentElement.parentElement;
       }
 
-      console.log(parent.scrollTop);
+      //console.log(parent.scrollTop);
 
       parent.scrollTop = 0;
       setTimeout(() => {
@@ -299,7 +299,24 @@ document.addEventListener('DOMContentLoaded', function () {
   };
 
   addEventListener('scroll', (evt) => {
-    if (isMobile.any()) {
+    if (isMobile.any() || !wheel) {
+      return;
+    }
+
+    const wheelSection = wheel.parentElement.parentElement;
+    const wheelSectionRect = wheelSection.getBoundingClientRect();
+    const wheelSectionHeight = wheelSectionRect.height;
+
+    const y = Math.min(
+      Math.max(
+        (-wheelSectionRect.top + window.innerHeight / 2) /
+          (wheelSectionHeight * 1.2),
+        0
+      ),
+      1
+    );
+
+    if (y === 0 || y === 1) {
       return;
     }
 
@@ -364,6 +381,68 @@ document.addEventListener('DOMContentLoaded', function () {
       carMove(y / rect.height);
     });
   });
+
+  //with-image sections parallax
+  const withImageSections = document.querySelectorAll('.with-image');
+  const startProgress = {
+    current: 0,
+    target: 0,
+  };
+  const progresses = [];
+  let idImageAnimations = [];
+
+  const withImageAnimate = (target, image, content, index) => {
+    if (!image || !content) {
+      return;
+    }
+    if (isMobile.any()) {
+      image.style.transform = '';
+      content.style.transform = '';
+    }
+
+    progresses[index].target = target;
+    progresses[index].current = lerp(
+      progresses[index].current,
+      progresses[index].target,
+      0.15,
+      0.001
+    );
+
+    //console.log(progresses[0].current * 100);
+    image.style.transform = `translateY(${-progresses[index].current * 10}%)`;
+    // content.style.transform = `translateY(${-progresses[index].current}px)`;
+
+    if (progresses[index].current === progresses[index].target) {
+      stopAnimation(idImageAnimations[index]);
+    } else {
+      withImageAnimate(progresses[index].target, image, content, index);
+    }
+  };
+
+  if (withImageSections && !isMobile.any()) {
+    Array.from(withImageSections).forEach((section, index) => {
+      progresses.push(startProgress);
+
+      const image = section.querySelector('.with-image__img');
+      const content = section.querySelector('.with-image__main');
+
+      if (image.classList.contains('_static')) {
+        return;
+      }
+
+      this.addEventListener('scroll', (evt) => {
+        const rect = section.getBoundingClientRect();
+        const startY = -1 * (rect.top - window.innerHeight / 2);
+        const y = Math.min(Math.max(startY, 0), rect.height);
+
+        const idAnimation = window.requestAnimationFrame(() => {
+          withImageAnimate(y / rect.height, image, content, index);
+        });
+
+        idImageAnimations.push(idAnimation);
+      });
+    });
+  }
 
   //price carKey animation
   const priceSection = document.querySelector('.price');
@@ -642,7 +721,30 @@ document.addEventListener('DOMContentLoaded', function () {
 
     if (!isMobile.any()) {
       const timeline = makeTimelineParking(consultationCar);
-      timeline.play();
+
+      window.addEventListener('scroll', () => {
+        const sectionRect = consultationSection.getBoundingClientRect();
+        const sectionHeight = sectionRect.height;
+
+        let isAnimationPlay = false;
+
+        const y = Math.min(
+          Math.max(
+            (-sectionRect.top + window.innerHeight / 2) / (sectionHeight * 1.2),
+            0
+          ),
+          1
+        );
+
+        if (y > 0 && y < 1 && !isAnimationPlay) {
+          timeline.play();
+          isAnimationPlay = true;
+          return;
+        }
+
+        timeline.pause();
+        isAnimationPlay = false;
+      });
     }
   }
 
@@ -807,6 +909,92 @@ document.addEventListener('DOMContentLoaded', function () {
         item.classList.add('select-hide');
       }
     });
+  }
+
+  //make table hover effect
+  const tableWrappers = document.querySelectorAll('[data-line-effect]');
+  let isTableEffectFinished = true;
+  tableWrappers.length && !isMobile.any() ? tableEffect() : null;
+
+  function tableEffect() {
+    tableWrappers.forEach((tableWrapper) => {
+      const tableRows = tableWrapper.querySelectorAll(
+        '.price-list__row:not(._header)'
+      );
+
+      const effectSpeed = tableWrapper.dataset.lineEffect
+        ? tableWrapper.dataset.lineEffect
+        : 200;
+
+      tableRows.length ? tableEffectItem(tableRows, effectSpeed) : null;
+    });
+
+    function tableEffectItem(tableRows, effectSpeed) {
+      const effectTransition = `transition: transform ${effectSpeed}ms ease;`;
+      const effectHover = `transform: translate3d(0px, 0%, 0px);`;
+      const effectTop = `transform: translate3d(0px, -105%, 0px);`;
+      const effectBottom = `transform: translate3d(0px, 105%, 0px);`;
+
+      tableRows.forEach((tableRow) => {
+        const innerContent = tableRow.innerHTML;
+        tableRow.insertAdjacentHTML(
+          'beforeend',
+          `
+        <div style="transform: translate3d(0px, 105%, 0px);" class="hover-table">
+            <div style="transform: translate3d(0px, -105%, 0px);" class="hover-table__content">
+                ${innerContent}
+            </div>
+        </div>
+        `
+        );
+
+        tableRow.onmouseenter = tableRow.onmouseleave = tableRowActions;
+      });
+
+      function tableRowActions(e) {
+        const tableRow = e.target;
+        const tableRowItem = tableRow.querySelector('.hover-table');
+        const tableRowContent = tableRow.querySelector('.hover-table__content');
+
+        const tableRowHeight = tableRow.offsetHeight / 2;
+        const tableRowPos =
+          e.pageY - (tableRow.getBoundingClientRect().top + scrollY);
+
+        if (!isTableEffectFinished) {
+          return;
+        }
+
+        if (e.type === 'mouseenter') {
+          isTableEffectFinished = false;
+          tableRowItem.style.cssText =
+            tableRowPos > tableRowHeight ? effectBottom : effectTop;
+          tableRowContent.style.cssText =
+            tableRowPos > tableRowHeight ? effectTop : effectBottom;
+
+          setTimeout(() => {
+            isTableEffectFinished = true;
+
+            tableRowItem.style.cssText = effectHover + effectTransition;
+            tableRowContent.style.cssText = effectHover + effectTransition;
+          }, 5);
+        }
+
+        if (e.type === 'mouseleave') {
+          setTimeout(() => {
+            isTableEffectFinished = true;
+
+            tableRowItem.style.cssText =
+              tableRowPos > tableRowHeight
+                ? effectBottom + effectTransition
+                : effectTop + effectTransition;
+            tableRowContent.style.cssText =
+              tableRowPos > tableRowHeight
+                ? effectTop + effectTransition
+                : effectBottom + effectTransition;
+          }, 2.5);
+        }
+      }
+    }
   }
 
   //swipers
